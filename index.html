@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gophish Campaign Reporter</title>
+    <style>
+        /* Basic Styling */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #343a40;
+            margin: 0; /* Ensure no default margin */
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: relative; /* Needed for absolute positioning of logout link */
+        }
+        h1, h2 {
+            color: #0056b3; /* A slightly darker blue */
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        input[type="password"] {
+             font-family: monospace;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-right: 10px; /* Default spacing */
+            border: none;
+            border-radius: 4px;
+            font-size: 0.9rem; /* Slightly smaller button text */
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.2s ease;
+            margin-bottom: 5px; /* Add space below buttons if they wrap */
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+             background-color: #6c757d;
+             cursor: not-allowed;
+             opacity: 0.7;
+        }
+        .generate-report-btn { /* Word button */
+             background-color: #007bff; /* Blue */
+        }
+        .generate-report-btn:hover {
+            background-color: #0056b3;
+        }
+         .generate-report-btn:disabled {
+             background-color: #6c757d;
+        }
+        .excel-report-btn { /* Excel button */
+             background-color: #28a745; /* Green */
+             /* margin-left: 5px; We use gap now */
+        }
+        .excel-report-btn:hover {
+            background-color: #218838;
+        }
+        .excel-report-btn:disabled {
+             background-color: #6c757d;
+        }
+        #campaignList {
+            margin-top: 20px;
+            list-style: none;
+            padding: 0;
+        }
+        #campaignList li {
+            background-color: #f8f9fa; /* Lighter background for list items */
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex; /* Use flexbox for the list item itself */
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            gap: 10px; /* Add gap between span and button div */
+        }
+        #campaignList li span {
+             font-weight: 500;
+             flex-grow: 1; /* Allow span to take available space */
+             margin-right: 15px; /* Space between text and buttons */
+        }
+        /* Styling for the div containing buttons */
+        #campaignList li > div {
+            display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap */
+            gap: 10px; /* Space between buttons and spinner */
+            align-items: center;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+            display: none; /* Hide status initially */
+        }
+        .error { color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .success { color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .info { color: #0c5460; background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border-left-color: #007bff;
+            animation: spin 1s ease infinite;
+            display: inline-block;
+            vertical-align: middle;
+            /* margin-left: 10px; Using gap now */
+            display: none; /* Hide by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .logout-link {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            text-decoration: none;
+            color: #dc3545;
+            font-weight: bold;
+            padding: 5px 10px;
+            border: 1px solid #dc3545;
+            border-radius: 4px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .logout-link:hover {
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+        }
+        small {
+             color: #6c757d;
+             font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        {% if logged_in %}
+            <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+        {% endif %}
+
+        <h1>Gophish Campaign Reporter</h1>
+
+        <div id="config-section">
+            <h2>Configuration</h2>
+            <div>
+                <label for="gophishUrl">Gophish API URL:</label>
+                <input type="text" id="gophishUrl" value="{{ gophish_url }}">
+            </div>
+            <div>
+                <label for="apiKey">Gophish API Key:</label>
+                <input type="password" id="apiKey" value="{{ gophish_api_key }}">
+                <small>This key is sent only to the backend server, not stored in the browser.</small>
+            </div>
+        </div>
+
+        <div id="actions-section" style="margin-top: 20px; margin-bottom: 30px;">
+            <button id="fetchCampaignsBtn">Fetch Campaigns</button>
+            <div class="spinner" id="listSpinner"></div>
+        </div>
+
+
+        <div id="campaigns-section">
+            <h2>Available Campaigns</h2>
+            <ul id="campaignList">
+                <li style="text-align: center; color: #6c757d; background: none; border: none;">Click "Fetch Campaigns" to load data.</li>
+            </ul>
+        </div>
+
+
+        <div id="status">
+             </div>
+
+    </div> <script>
+        // --- DOM Element References ---
+        const fetchCampaignsBtn = document.getElementById('fetchCampaignsBtn');
+        const campaignListUl = document.getElementById('campaignList');
+        const statusDiv = document.getElementById('status');
+        const gophishUrlInput = document.getElementById('gophishUrl');
+        const apiKeyInput = document.getElementById('apiKey');
+        const listSpinner = document.getElementById('listSpinner');
+
+        // --- Helper Functions ---
+        function setStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = type; // Set class based on type
+            statusDiv.style.display = 'block';
+        }
+
+        function clearStatus() {
+            statusDiv.textContent = '';
+            statusDiv.className = '';
+            statusDiv.style.display = 'none';
+        }
+
+        function setLoading(isLoading, spinnerId) {
+            const spinner = document.getElementById(spinnerId);
+            if (spinner) {
+                spinner.style.display = isLoading ? 'inline-block' : 'none';
+            }
+            // Only disable the main fetch button when listSpinner is active
+            if (spinnerId === 'listSpinner') {
+                 fetchCampaignsBtn.disabled = isLoading;
+            }
+            // Disabling individual report buttons is handled in handleReportGeneration
+        }
+
+        // --- Event Listeners ---
+        fetchCampaignsBtn.addEventListener('click', async () => {
+            clearStatus();
+            setStatus('Fetching campaigns...', 'info');
+            setLoading(true, 'listSpinner');
+            // Clear list and show loading indicator inside it
+            campaignListUl.innerHTML = '<li style="text-align: center; color: #6c757d; background: none; border: none;">Loading campaigns...</li>';
+
+            const url = gophishUrlInput.value.trim();
+            const key = apiKeyInput.value.trim();
+
+            if (!url || !key) {
+                setStatus('Please provide both Gophish URL and API Key.', 'error');
+                setLoading(false, 'listSpinner');
+                campaignListUl.innerHTML = '<li style="color: red; background: none; border: none;">Configuration missing.</li>';
+                return;
+            }
+
+            try {
+                const backendUrl = `/api/campaigns?gophish_url=${encodeURIComponent(url)}&api_key=${encodeURIComponent(key)}`;
+                const response = await fetch(backendUrl);
+
+                if (!response.ok) {
+                    let errorMsg = `Error ${response.status}: ${response.statusText}`;
+                    try { const errorData = await response.json(); errorMsg = `Error ${response.status}: ${errorData.error || response.statusText}`; } catch (e) {}
+                    if (response.redirected || response.status === 401 || response.url.includes('/login')) { errorMsg = 'Session expired or not logged in. Please log in again.'; window.location.href = '/login'; } // Redirect if login needed
+                    throw new Error(errorMsg);
+                }
+
+                const campaigns = await response.json();
+                campaignListUl.innerHTML = ''; // Clear "Loading..."
+
+                if (!campaigns || campaigns.length === 0) {
+                    setStatus('No campaigns found.', 'info');
+                    campaignListUl.innerHTML = '<li style="text-align: center; color: #6c757d; background: none; border: none;">No campaigns found.</li>';
+                } else {
+                    setStatus(`Workspaceed ${campaigns.length} campaigns successfully.`, 'success');
+                    campaigns.forEach(campaign => {
+                        const li = document.createElement('li');
+                        // Ensure buttons and spinner are inside a div for flexbox alignment
+                        li.innerHTML = `
+                            <span>${campaign.name} (ID: ${campaign.id})</span>
+                            <div>
+                                <button class="generate-report-btn" data-campaign-id="${campaign.id}">Word Report</button> <button class="excel-report-btn" data-campaign-id="${campaign.id}">Excel Report</button> <div class="spinner" id="spinner-${campaign.id}"></div>
+                            </div>
+                        `;
+                        campaignListUl.appendChild(li);
+                    });
+                    // Add listeners AFTER campaigns are added to DOM
+                    addReportButtonListeners();
+                }
+            } catch (error) {
+                console.error('Error fetching campaigns:', error);
+                setStatus(`Failed to fetch campaigns: ${error.message}`, 'error');
+                campaignListUl.innerHTML = `<li style="color: red; background: none; border: none;">Error loading campaigns. Check console (F12) for details.</li>`;
+            } finally {
+                setLoading(false, 'listSpinner');
+            }
+        });
+
+        // Function to add listeners to report buttons
+        function addReportButtonListeners() {
+            // --- Word Buttons ---
+            document.querySelectorAll('.generate-report-btn').forEach(button => {
+                const newButton = button.cloneNode(true); // Clone to remove old listeners
+                button.parentNode.replaceChild(newButton, button);
+                newButton.addEventListener('click', (event) => handleReportGeneration(event, 'word'));
+             });
+
+            // --- Excel Buttons ---
+            document.querySelectorAll('.excel-report-btn').forEach(button => {
+                 const newButton = button.cloneNode(true); // Clone to remove old listeners
+                 button.parentNode.replaceChild(newButton, button);
+                 newButton.addEventListener('click', (event) => handleReportGeneration(event, 'excel'));
+             });
+        }
+
+        // Common function to handle report generation
+        async function handleReportGeneration(event, reportType) {
+            const button = event.target;
+            const campaignId = button.getAttribute('data-campaign-id');
+            const url = gophishUrlInput.value.trim();
+            const key = apiKeyInput.value.trim();
+            const buttonContainer = button.closest('div'); // Get the div holding buttons/spinner
+            const spinner = buttonContainer.querySelector('.spinner'); // Find spinner within the container
+
+            if (!url || !key) {
+               setStatus('Gophish URL and API Key missing in fields.', 'error');
+               return;
+            }
+
+            clearStatus();
+            setStatus(`Generating ${reportType} report for campaign ID: ${campaignId}...`, 'info');
+            // Show spinner and disable buttons within this item
+            if(spinner) spinner.style.display = 'inline-block';
+            buttonContainer.querySelectorAll('button').forEach(btn => btn.disabled = true);
+
+            try {
+                let backendUrlPath = reportType === 'excel' ? 'generate-excel-report' : 'generate-report';
+                let defaultExtension = reportType === 'excel' ? 'xlsx' : 'docx';
+
+                const backendUrl = `/api/${backendUrlPath}/${campaignId}?gophish_url=${encodeURIComponent(url)}&api_key=${encodeURIComponent(key)}`;
+                const response = await fetch(backendUrl);
+
+                if (!response.ok) {
+                    let errorMsg = `Error ${response.status}: ${response.statusText}`;
+                     try { const errorData = await response.json(); errorMsg = `Error ${response.status}: ${errorData.error || response.statusText}`; } catch (e) {}
+                     if (response.redirected || response.status === 401 || response.url.includes('/login')) { errorMsg = 'Session expired or not logged in. Please log in again.'; window.location.href = '/login'; } // Redirect if login needed
+                    throw new Error(errorMsg);
+                }
+
+                // Trigger file download
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = `gophish_report_${campaignId}.${defaultExtension}`;
+                if (disposition && disposition.includes('attachment')) {
+                    const filenameRegex = /filename[^;=\n]*=(?:(["'])(.*?)\1|([^;\n]*))/; // Handles quotes or no quotes
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches && (matches[2] || matches[3])) {
+                         filename = matches[2] || matches[3]; // Use quoted or unquoted name
+                    }
+                }
+                a.href = downloadUrl; a.download = filename;
+                document.body.appendChild(a); a.click();
+                window.URL.revokeObjectURL(downloadUrl); document.body.removeChild(a);
+                setStatus(`Report "${filename}" downloaded successfully.`, 'success');
+
+            } catch (error) {
+                console.error(`Error generating ${reportType} report for campaign ${campaignId}:`, error);
+                setStatus(`Failed to generate ${reportType} report: ${error.message}`, 'error');
+            } finally {
+                 // Hide spinner and re-enable buttons within this item
+                 if(spinner) spinner.style.display = 'none';
+                 buttonContainer.querySelectorAll('button').forEach(btn => btn.disabled = false);
+            }
+        }
+
+    </script>
+
+</body>
+</html>
