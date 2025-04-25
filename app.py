@@ -24,7 +24,7 @@ DEFAULT_GOPHISH_API_KEY = os.getenv('GOPHISH_API_KEY', "<your GoPhish API Key>")
 
 # --- Simple Login Credentials (INSECURE - FOR DEMO ONLY) ---
 USERNAME = "admin"
-PASSWORD = "sdfjlsf23A" # Use proper hashing in production
+PASSWORD = "yourpassword" # Use proper hashing in production
 
 # --- Create the Flask App Instance ---
 app = Flask(__name__)
